@@ -1,5 +1,5 @@
 ### Hi there 👋
-
+<div align="center"> <img src="https://metrics.lecoq.io/LongLongMorty?template=classic&config.timezone=Asia%2FShanghai"> </div>
 <!--
 **LongLongMorty/LongLongMorty** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
 
