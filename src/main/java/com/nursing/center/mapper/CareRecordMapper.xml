@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nursing.center.mapper.CareRecordMapper">
+
+    <!-- 结果映射 -->
+    <resultMap id="CareRecordDTOMap" type="com.nursing.center.dto.CareRecordDTO">
+        <id column="id" property="id"/>
+        <result column="customer_id" property="customerId"/>
+        <result column="care_item_id" property="careItemId"/>
+        <result column="health_manager_id" property="healthManagerId"/>
+        <result column="care_time" property="careTime"/>
+        <result column="care_quantity" property="careQuantity"/>
+        <result column="care_content" property="careContent"/>
+        <result column="remark" property="remark"/>
+        <result column="customer_name" property="customerName"/>
+        <result column="item_name" property="itemName"/>
+        <result column="health_manager_name" property="healthManagerName"/>
+    </resultMap>
+
+    <!-- 分页查询护理记录 -->
+    <select id="selectCareRecordPage" resultMap="CareRecordDTOMap">
+        SELECT
+        cr.id,
+        cr.customer_id,
+        cr.care_item_id,
+        cr.health_manager_id,
+        cr.care_time,
+        cr.care_quantity,
+        cr.care_content,
+        cr.remark,
+        c.customer_name,
+        ci.item_name,
+        su.real_name as health_manager_name
+        FROM care_record cr
+        INNER JOIN customer c ON cr.customer_id = c.id
+        INNER JOIN care_item ci ON cr.care_item_id = ci.id
+        INNER JOIN sys_user su ON cr.health_manager_id = su.id
+        WHERE cr.deleted = 0
+        <if test="query.customerId != null">
+            AND cr.customer_id = #{query.customerId}
+        </if>
+        <if test="query.careItemId != null">
+            AND cr.care_item_id = #{query.careItemId}
+        </if>
+        <if test="query.healthManagerId != null">
+            AND cr.health_manager_id = #{query.healthManagerId}
+        </if>
+        <if test="query.customerName != null and query.customerName != ''">
+            AND c.customer_name LIKE CONCAT('%', #{query.customerName}, '%')
+        </if>
+        <if test="query.startTime != null">
+            AND cr.care_time >= #{query.startTime}
+        </if>
+        <if test="query.endTime != null">
+            AND cr.care_time &lt;= #{query.endTime}
+        </if>
+        ORDER BY cr.care_time DESC
+    </select>
+
+    <!-- 查询客户的护理记录 -->
+    <select id="selectByCustomerId" resultMap="CareRecordDTOMap">
+        SELECT
+            cr.id,
+            cr.customer_id,
+            cr.care_item_id,
+            cr.health_manager_id,
+            cr.care_time,
+            cr.care_quantity,
+            cr.care_content,
+            cr.remark,
+            c.customer_name,
+            ci.item_name,
+            su.real_name as health_manager_name
+        FROM care_record cr
+                 INNER JOIN customer c ON cr.customer_id = c.id
+                 INNER JOIN care_item ci ON cr.care_item_id = ci.id
+                 INNER JOIN sys_user su ON cr.health_manager_id = su.id
+        WHERE cr.customer_id = #{customerId} AND cr.deleted = 0
+        ORDER BY cr.care_time DESC
+    </select>
+
+</mapper>

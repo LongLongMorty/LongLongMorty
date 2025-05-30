@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nursing.center.mapper.HealthManagerMapper">
+
+    <!-- 健康管家DTO结果映射 -->
+    <resultMap id="HealthManagerDTOMap" type="com.nursing.center.dto.HealthManagerDTO">
+        <id column="id" property="id"/>
+        <result column="username" property="username"/>
+        <result column="real_name" property="realName"/>
+        <result column="phone" property="phone"/>
+        <result column="role" property="role"/>
+        <result column="status" property="status"/>
+        <result column="total_customers" property="totalCustomers"/>
+        <result column="active_customers" property="activeCustomers"/>
+    </resultMap>
+
+    <!-- 客户服务DTO结果映射 -->
+    <resultMap id="CustomerServiceDTOMap" type="com.nursing.center.dto.CustomerServiceDTO">
+        <id column="id" property="id"/>
+        <result column="customer_id" property="customerId"/>
+        <result column="health_manager_id" property="healthManagerId"/>
+        <result column="customer_name" property="customerName"/>
+        <result column="age" property="age"/>
+        <result column="id_card" property="idCard"/>
+        <result column="customer_type" property="customerType"/>
+        <result column="bed_info" property="bedInfo"/>
+        <result column="check_in_date" property="checkInDate"/>
+        <result column="contract_expire_date" property="contractExpireDate"/>
+        <result column="service_start_date" property="serviceStartDate"/>
+        <result column="service_end_date" property="serviceEndDate"/>
+        <result column="service_status" property="serviceStatus"/>
+        <result column="customer_status" property="customerStatus"/>
+        <result column="care_level_name" property="careLevelName"/>
+        <result column="total_care_items" property="totalCareItems"/>
+        <result column="active_care_items" property="activeCareItems"/>
+    </resultMap>
+
+    <!-- 分页查询健康管家 -->
+    <select id="selectHealthManagerPage" resultMap="HealthManagerDTOMap">
+        SELECT
+        su.id,
+        su.username,
+        su.real_name,
+        su.phone,
+        su.role,
+        su.status,
+        COALESCE(customer_stats.total_customers, 0) as total_customers,
+        COALESCE(customer_stats.active_customers, 0) as active_customers
+        FROM sys_user su
+        LEFT JOIN (
+        SELECT
+        health_manager_id,
+        COUNT(*) as total_customers,
+        SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) as active_customers
+        FROM customer
+        WHERE deleted = 0 AND health_manager_id IS NOT NULL
+        GROUP BY health_manager_id
+        ) customer_stats ON su.id = customer_stats.health_manager_id
+        WHERE su.deleted = 0 AND su.role = 'HEALTH_MANAGER'
+        <if test="query.realName != null and query.realName != ''">
+            AND su.real_name LIKE CONCAT('%', #{query.realName}, '%')
+        </if>
+        <if test="query.status != null">
+            AND su.status = #{query.status}
+        </if>
+        ORDER BY su.create_time DESC
+    </select>
+
+    <!-- 查询健康管家的服务客户列表 -->
+    <select id="selectServiceCustomers" resultMap="CustomerServiceDTOMap">
+        SELECT
+            hmc.id,
+            c.id as customer_id,
+            c.health_manager_id,
+            c.customer_name,
+            c.age,
+            c.id_card,
+            c.customer_type,
+            CONCAT(b.building_name, '-', r.room_no, '-', bed.bed_no) as bed_info,
+            c.check_in_date,
+            c.contract_expire_date,
+            hmc.service_start_date,
+            hmc.service_end_date,
+            hmc.status as service_status,
+            c.status as customer_status,
+            cl.level_name as care_level_name,
+            COALESCE(care_stats.total_items, 0) as total_care_items,
+            COALESCE(care_stats.active_items, 0) as active_care_items
+        FROM health_manager_customer hmc
+                 INNER JOIN customer c ON hmc.customer_id = c.id
+                 LEFT JOIN care_level cl ON c.care_level_id = cl.id
+                 LEFT JOIN bed bed ON c.bed_id = bed.id
+                 LEFT JOIN room r ON bed.room_id = r.id
+                 LEFT JOIN building b ON r.building_id = b.id
+                 LEFT JOIN (
+            SELECT
+                customer_id,
+                COUNT(*) as total_items,
+                SUM(CASE WHEN service_status = 'NORMAL' AND expire_date >= CURDATE() AND remaining_quantity > 0 THEN 1 ELSE 0 END) as active_items
+            FROM customer_care
+            WHERE deleted = 0
+            GROUP BY customer_id
+        ) care_stats ON c.id = care_stats.customer_id
+        WHERE hmc.deleted = 0 AND hmc.health_manager_id = #{healthManagerId}
+          AND hmc.status = 1
+        ORDER BY hmc.create_time DESC
+    </select>
+
+    <!-- 查询无健康管家的客户 -->
+    <select id="selectCustomersWithoutManager" resultMap="CustomerServiceDTOMap">
+        SELECT
+        0 as id,
+        c.id as customer_id,
+        c.health_manager_id,
+        c.customer_name,
+        c.age,
+        c.id_card,
+        c.customer_type,
+        CONCAT(b.building_name, '-', r.room_no, '-', bed.bed_no) as bed_info,
+        c.check_in_date,
+        c.contract_expire_date,
+        NULL as service_start_date,
+        NULL as service_end_date,
+        0 as service_status,
+        c.status as customer_status,
+        cl.level_name as care_level_name,
+        COALESCE(care_stats.total_items, 0) as total_care_items,
+        COALESCE(care_stats.active_items, 0) as active_care_items
+        FROM customer c
+        LEFT JOIN care_level cl ON c.care_level_id = cl.id
+        LEFT JOIN bed bed ON c.bed_id = bed.id
+        LEFT JOIN room r ON bed.room_id = r.id
+        LEFT JOIN building b ON r.building_id = b.id
+        LEFT JOIN (
+        SELECT
+        customer_id,
+        COUNT(*) as total_items,
+        SUM(CASE WHEN service_status = 'NORMAL' AND expire_date >= CURDATE() AND remaining_quantity > 0 THEN 1 ELSE 0 END) as active_items
+        FROM customer_care
+        WHERE deleted = 0
+        GROUP BY customer_id
+        ) care_stats ON c.id = care_stats.customer_id
+        WHERE c.deleted = 0 AND c.status = 1 AND c.health_manager_id IS NULL
+        <if test="customerName != null and customerName != ''">
+            AND c.customer_name LIKE CONCAT('%', #{customerName}, '%')
+        </if>
+        ORDER BY c.create_time DESC
+    </select>
+
+    <!-- 查询客户的护理项目 -->
+    <select id="selectCustomerCareItems" resultType="com.nursing.center.dto.CustomerCareItemDTO">
+        SELECT
+            cc.id as customer_care_id,
+            ci.id as care_item_id,
+            ci.item_code,
+            ci.item_name,
+            ci.price,
+            ci.execute_cycle,
+            ci.execute_times,
+            ci.description,
+            cc.purchase_quantity,
+            cc.used_quantity,
+            cc.remaining_quantity,
+            cc.purchase_date,
+            cc.expire_date,
+            cc.service_status
+        FROM customer_care cc
+                 INNER JOIN care_item ci ON cc.care_item_id = ci.id
+        WHERE cc.customer_id = #{customerId} AND cc.deleted = 0
+        ORDER BY cc.create_time DESC
+    </select>
+
+</mapper>

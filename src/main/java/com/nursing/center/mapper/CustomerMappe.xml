@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nursing.center.mapper.CustomerMapper">
+
+    <!-- 结果映射 -->
+    <resultMap id="CustomerDTOMap" type="com.nursing.center.dto.CustomerDTO">
+        <id column="id" property="id"/>
+        <result column="customer_name" property="customerName"/>
+        <result column="age" property="age"/>
+        <result column="gender" property="gender"/>
+        <result column="id_card" property="idCard"/>
+        <result column="birth_date" property="birthDate"/>
+        <result column="blood_type" property="bloodType"/>
+        <result column="guardian_name" property="guardianName"/>
+        <result column="guardian_phone" property="guardianPhone"/>
+        <result column="building_id" property="buildingId"/>
+        <result column="room_id" property="roomId"/>
+        <result column="bed_id" property="bedId"/>
+        <result column="check_in_date" property="checkInDate"/>
+        <result column="contract_expire_date" property="contractExpireDate"/>
+        <result column="care_level_id" property="careLevelId"/>
+        <result column="health_manager_id" property="healthManagerId"/>
+        <result column="customer_type" property="customerType"/>
+        <result column="status" property="status"/>
+        <result column="building_name" property="buildingName"/>
+        <result column="room_no" property="roomNo"/>
+        <result column="bed_no" property="bedNo"/>
+        <result column="care_level_name" property="careLevelName"/>
+        <result column="health_manager_name" property="healthManagerName"/>
+    </resultMap>
+
+    <!-- 分页查询客户信息 -->
+    <select id="selectCustomerPage" resultMap="CustomerDTOMap">
+        SELECT
+        c.*,
+        b.building_name,
+        r.room_no,
+        bed.bed_no,
+        cl.level_name as care_level_name,
+        su.real_name as health_manager_name
+        FROM customer c
+        LEFT JOIN building b ON c.building_id = b.id
+        LEFT JOIN room r ON c.room_id = r.id
+        LEFT JOIN bed bed ON c.bed_id = bed.id
+        LEFT JOIN care_level cl ON c.care_level_id = cl.id
+        LEFT JOIN sys_user su ON c.health_manager_id = su.id
+        WHERE c.deleted = 0
+        <if test="query.customerName != null and query.customerName != ''">
+            AND c.customer_name LIKE CONCAT('%', #{query.customerName}, '%')
+        </if>
+        <if test="query.customerType != null">
+            AND c.customer_type = #{query.customerType}
+        </if>
+        <if test="query.status != null">
+            AND c.status = #{query.status}
+        </if>
+        ORDER BY c.create_time DESC
+    </select>
+
+    <!-- 根据ID查询客户详细信息 -->
+    <select id="selectCustomerById" resultMap="CustomerDTOMap">
+        SELECT
+            c.*,
+            b.building_name,
+            r.room_no,
+            bed.bed_no,
+            cl.level_name as care_level_name,
+            su.real_name as health_manager_name
+        FROM customer c
+                 LEFT JOIN building b ON c.building_id = b.id
+                 LEFT JOIN room r ON c.room_id = r.id
+                 LEFT JOIN bed bed ON c.bed_id = bed.id
+                 LEFT JOIN care_level cl ON c.care_level_id = cl.id
+                 LEFT JOIN sys_user su ON c.health_manager_id = su.id
+        WHERE c.id = #{id} AND c.deleted = 0
+    </select>
+
+</mapper>

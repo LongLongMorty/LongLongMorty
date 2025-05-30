@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nursing.center.mapper.CheckoutApplyMapper">
+
+    <!-- 结果映射 -->
+    <resultMap id="CheckoutApplyDTOMap" type="com.nursing.center.dto.CheckoutApplyDTO">
+        <id column="id" property="id"/>
+        <result column="customer_id" property="customerId"/>
+        <result column="applicant_id" property="applicantId"/>
+        <result column="checkout_type" property="checkoutType"/>
+        <result column="checkout_reason" property="checkoutReason"/>
+        <result column="checkout_date" property="checkoutDate"/>
+        <result column="apply_status" property="applyStatus"/>
+        <result column="approver_id" property="approverId"/>
+        <result column="approve_time" property="approveTime"/>
+        <result column="approve_remark" property="approveRemark"/>
+        <result column="customer_name" property="customerName"/>
+        <result column="applicant_name" property="applicantName"/>
+        <result column="approver_name" property="approverName"/>
+        <result column="bed_info" property="bedInfo"/>
+    </resultMap>
+
+    <!-- 分页查询退住申请 -->
+    <select id="selectCheckoutApplyPage" resultMap="CheckoutApplyDTOMap">
+        SELECT
+        ca.id,
+        ca.customer_id,
+        ca.applicant_id,
+        ca.checkout_type,
+        ca.checkout_reason,
+        ca.checkout_date,
+        ca.apply_status,
+        ca.approver_id,
+        ca.approve_time,
+        ca.approve_remark,
+        ca.create_time,
+        c.customer_name,
+        su1.real_name as applicant_name,
+        su2.real_name as approver_name,
+        CONCAT(b.building_name, '-', r.room_no, '-', bed.bed_no) as bed_info
+        FROM checkout_apply ca
+        INNER JOIN customer c ON ca.customer_id = c.id
+        LEFT JOIN sys_user su1 ON ca.applicant_id = su1.id
+        LEFT JOIN sys_user su2 ON ca.approver_id = su2.id
+        LEFT JOIN bed bed ON c.bed_id = bed.id
+        LEFT JOIN room r ON bed.room_id = r.id
+        LEFT JOIN building b ON r.building_id = b.id
+        WHERE ca.deleted = 0
+        <if test="query.customerName != null and query.customerName != ''">
+            AND c.customer_name LIKE CONCAT('%', #{query.customerName}, '%')
+        </if>
+        <if test="query.checkoutType != null">
+            AND ca.checkout_type = #{query.checkoutType}
+        </if>
+        <if test="query.applyStatus != null">
+            AND ca.apply_status = #{query.applyStatus}
+        </if>
+        <if test="query.applicantId != null">
+            AND ca.applicant_id = #{query.applicantId}
+        </if>
+        <if test="query.startDate != null">
+            AND ca.checkout_date >= #{query.startDate}
+        </if>
+        <if test="query.endDate != null">
+            AND ca.checkout_date &lt;= #{query.endDate}
+        </if>
+        ORDER BY ca.create_time DESC
+    </select>
+
+    <!-- 根据ID查询退住申请详情 -->
+    <select id="selectCheckoutApplyById" resultMap="CheckoutApplyDTOMap">
+        SELECT
+            ca.id,
+            ca.customer_id,
+            ca.applicant_id,
+            ca.checkout_type,
+            ca.checkout_reason,
+            ca.checkout_date,
+            ca.apply_status,
+            ca.approver_id,
+            ca.approve_time,
+            ca.approve_remark,
+            ca.create_time,
+            c.customer_name,
+            su1.real_name as applicant_name,
+            su2.real_name as approver_name,
+            CONCAT(b.building_name, '-', r.room_no, '-', bed.bed_no) as bed_info
+        FROM checkout_apply ca
+                 INNER JOIN customer c ON ca.customer_id = c.id
+                 LEFT JOIN sys_user su1 ON ca.applicant_id = su1.id
+                 LEFT JOIN sys_user su2 ON ca.approver_id = su2.id
+                 LEFT JOIN bed bed ON c.bed_id = bed.id
+                 LEFT JOIN room r ON bed.room_id = r.id
+                 LEFT JOIN building b ON r.building_id = b.id
+        WHERE ca.id = #{id} AND ca.deleted = 0
+    </select>
+
+</mapper>

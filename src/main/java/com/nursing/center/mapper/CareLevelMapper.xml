@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nursing.center.mapper.CareLevelMapper">
+
+    <!-- 结果映射 -->
+    <resultMap id="CareLevelDTOMap" type="com.nursing.center.dto.CareLevelDTO">
+        <id column="id" property="id"/>
+        <result column="level_name" property="levelName"/>
+        <result column="level_code" property="levelCode"/>
+        <result column="description" property="description"/>
+        <result column="status" property="status"/>
+        <collection property="careItems" ofType="com.nursing.center.dto.CareItemDTO">
+            <id column="item_id" property="id"/>
+            <result column="item_code" property="itemCode"/>
+            <result column="item_name" property="itemName"/>
+            <result column="price" property="price"/>
+            <result column="execute_cycle" property="executeCycle"/>
+            <result column="execute_times" property="executeTimes"/>
+            <result column="item_description" property="description"/>
+            <result column="item_status" property="status"/>
+        </collection>
+    </resultMap>
+
+    <!-- 分页查询护理级别 -->
+    <select id="selectCareLevelPage" resultType="com.nursing.center.dto.CareLevelDTO">
+        SELECT
+        id,
+        level_name,
+        level_code,
+        description,
+        status,
+        create_time,
+        update_time
+        FROM care_level
+        WHERE deleted = 0
+        <if test="query.status != null">
+            AND status = #{query.status}
+        </if>
+        <if test="query.levelName != null and query.levelName != ''">
+            AND level_name LIKE CONCAT('%', #{query.levelName}, '%')
+        </if>
+        ORDER BY create_time DESC
+    </select>
+
+    <!-- 查询护理级别及其关联的护理项目 -->
+    <select id="selectCareLevelWithItems" resultMap="CareLevelDTOMap">
+        SELECT
+            cl.id,
+            cl.level_name,
+            cl.level_code,
+            cl.description,
+            cl.status,
+            ci.id as item_id,
+            ci.item_code,
+            ci.item_name,
+            ci.price,
+            ci.execute_cycle,
+            ci.execute_times,
+            ci.description as item_description,
+            ci.status as item_status
+        FROM care_level cl
+                 LEFT JOIN care_level_item cli ON cl.id = cli.care_level_id AND cli.deleted = 0
+                 LEFT JOIN care_item ci ON cli.care_item_id = ci.id AND ci.deleted = 0 AND ci.status = 1
+        WHERE cl.id = #{id} AND cl.deleted = 0
+    </select>
+
+    <!-- 查询启用状态的护理级别列表 -->
+    <select id="selectEnabledCareLevels" resultType="com.nursing.center.dto.CareLevelDTO">
+        SELECT
+            id,
+            level_name,
+            level_code,
+            description,
+            status
+        FROM care_level
+        WHERE deleted = 0 AND status = 1
+        ORDER BY create_time ASC
+    </select>
+
+</mapper>

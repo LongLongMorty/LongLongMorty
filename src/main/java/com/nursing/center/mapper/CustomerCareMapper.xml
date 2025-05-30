@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nursing.center.mapper.CustomerCareMapper">
+
+    <!-- 查询客户的护理服务列表 -->
+    <select id="selectByCustomerId" resultType="com.nursing.center.dto.CustomerCareDTO">
+        SELECT
+            cc.id,
+            cc.customer_id,
+            cc.care_item_id,
+            cc.purchase_date,
+            cc.purchase_quantity,
+            cc.used_quantity,
+            cc.remaining_quantity,
+            cc.expire_date,
+            cc.service_status,
+            c.customer_name,
+            ci.item_name,
+            ci.item_code,
+            ci.price as item_price
+        FROM customer_care cc
+                 INNER JOIN customer c ON cc.customer_id = c.id
+                 INNER JOIN care_item ci ON cc.care_item_id = ci.id
+        WHERE cc.customer_id = #{customerId} AND cc.deleted = 0
+        ORDER BY cc.create_time DESC
+    </select>
+
+    <!-- 查询客户未拥有的护理项目 -->
+    <select id="selectAvailableItemsForCustomer" resultType="com.nursing.center.dto.CustomerCareDTO">
+        SELECT
+        0 as id,
+        #{customerId} as customer_id,
+        ci.id as care_item_id,
+        NULL as purchase_date,
+        0 as purchase_quantity,
+        0 as used_quantity,
+        0 as remaining_quantity,
+        NULL as expire_date,
+        NULL as service_status,
+        '' as customer_name,
+        ci.item_name,
+        ci.item_code,
+        ci.price as item_price
+        FROM care_item ci
+        WHERE ci.deleted = 0 AND ci.status = 1
+        AND ci.id NOT IN (
+        SELECT care_item_id
+        FROM customer_care
+        WHERE customer_id = #{customerId} AND deleted = 0
+        )
+        <if test="itemName != null and itemName != ''">
+            AND ci.item_name LIKE CONCAT('%', #{itemName}, '%')
+        </if>
+        ORDER BY ci.create_time DESC
+    </select>
+
+    <!-- 更新客户护理服务使用数量 -->
+    <update id="updateUsedQuantity">
+        UPDATE customer_care
+        SET used_quantity = #{usedQuantity},
+            remaining_quantity = #{remainingQuantity},
+            update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+</mapper>

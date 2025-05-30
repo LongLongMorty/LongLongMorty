@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nursing.center.mapper.MealCalendarMapper">
+
+    <!-- 结果映射 -->
+    <resultMap id="MealCalendarDTOMap" type="com.nursing.center.dto.MealCalendarDTO">
+        <id column="id" property="id"/>
+        <result column="meal_date" property="mealDate"/>
+        <result column="meal_type" property="mealType"/>
+        <result column="meal_name" property="mealName"/>
+        <result column="meal_category" property="mealCategory"/>
+        <result column="description" property="description"/>
+        <result column="status" property="status"/>
+    </resultMap>
+
+    <!-- 分页查询膳食日历 -->
+    <select id="selectMealCalendarPage" resultMap="MealCalendarDTOMap">
+        SELECT
+        id,
+        meal_date,
+        meal_type,
+        meal_name,
+        meal_category,
+        description,
+        status,
+        create_time,
+        update_time
+        FROM meal_calendar
+        WHERE deleted = 0
+        <if test="query.startDate != null">
+            AND meal_date >= #{query.startDate}
+        </if>
+        <if test="query.endDate != null">
+            AND meal_date &lt;= #{query.endDate}
+        </if>
+        <if test="query.mealType != null">
+            AND meal_type = #{query.mealType}
+        </if>
+        <if test="query.status != null">
+            AND status = #{query.status}
+        </if>
+        <if test="query.mealName != null and query.mealName != ''">
+            AND meal_name LIKE CONCAT('%', #{query.mealName}, '%')
+        </if>
+        <if test="query.mealCategory != null and query.mealCategory != ''">
+            AND meal_category LIKE CONCAT('%', #{query.mealCategory}, '%')
+        </if>
+        ORDER BY meal_date DESC, meal_type ASC
+    </select>
+
+    <!-- 查询指定日期范围的膳食安排 -->
+    <select id="selectMealsByDateRange" resultMap="MealCalendarDTOMap">
+        SELECT
+            id,
+            meal_date,
+            meal_type,
+            meal_name,
+            meal_category,
+            description,
+            status
+        FROM meal_calendar
+        WHERE deleted = 0 AND status = 1
+          AND meal_date BETWEEN #{startDate} AND #{endDate}
+        ORDER BY meal_date ASC,
+                 CASE meal_type
+                     WHEN 'BREAKFAST' THEN 1
+                     WHEN 'LUNCH' THEN 2
+                     WHEN 'DINNER' THEN 3
+                     WHEN 'SNACK' THEN 4
+                     ELSE 5
+                     END ASC
+    </select>
+
+    <!-- 查询指定日期的膳食安排 -->
+    <select id="selectMealsByDate" resultMap="MealCalendarDTOMap">
+        SELECT
+            id,
+            meal_date,
+            meal_type,
+            meal_name,
+            meal_category,
+            description,
+            status
+        FROM meal_calendar
+        WHERE deleted = 0 AND status = 1
+          AND meal_date = #{mealDate}
+        ORDER BY CASE meal_type
+                     WHEN 'BREAKFAST' THEN 1
+                     WHEN 'LUNCH' THEN 2
+                     WHEN 'DINNER' THEN 3
+                     WHEN 'SNACK' THEN 4
+                     ELSE 5
+                     END ASC
+    </select>
+
+    <!-- 检查膳食安排是否存在冲突 -->
+    <select id="checkMealConflict" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM meal_calendar
+        WHERE deleted = 0
+        AND meal_date = #{mealDate}
+        AND meal_type = #{mealType}
+        <if test="excludeId != null">
+            AND id != #{excludeId}
+        </if>
+    </select>
+
+</mapper>

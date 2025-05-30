@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nursing.center.mapper.CareLevelItemMapper">
+
+    <!-- 查询护理级别下的护理项目 -->
+    <select id="selectItemsByLevelId" resultType="com.nursing.center.dto.CareItemDTO">
+        SELECT
+            ci.id,
+            ci.item_code,
+            ci.item_name,
+            ci.price,
+            ci.execute_cycle,
+            ci.execute_times,
+            ci.description,
+            ci.status
+        FROM care_item ci
+                 INNER JOIN care_level_item cli ON ci.id = cli.care_item_id
+        WHERE cli.care_level_id = #{careLevelId}
+          AND cli.deleted = 0 AND ci.deleted = 0 AND ci.status = 1
+        ORDER BY ci.create_time DESC
+    </select>
+
+    <!-- 查询不在指定护理级别下的启用护理项目 -->
+    <select id="selectAvailableItemsNotInLevel" resultType="com.nursing.center.dto.CareItemDTO">
+        SELECT
+            id,
+            item_code,
+            item_name,
+            price,
+            execute_cycle,
+            execute_times,
+            description,
+            status
+        FROM care_item
+        WHERE deleted = 0 AND status = 1
+          AND id NOT IN (
+            SELECT care_item_id
+            FROM care_level_item
+            WHERE care_level_id = #{careLevelId} AND deleted = 0
+        )
+        ORDER BY create_time DESC
+    </select>
+
+    <!-- 批量删除护理级别下的护理项目 -->
+    <update id="deleteByCareItemIds">
+        UPDATE care_level_item
+        SET deleted = 1, update_time = NOW()
+        WHERE care_level_id = #{careLevelId}
+        AND care_item_id IN
+        <foreach collection="careItemIds" item="itemId" open="(" separator="," close=")">
+            #{itemId}
+        </foreach>
+    </update>
+
+</mapper>

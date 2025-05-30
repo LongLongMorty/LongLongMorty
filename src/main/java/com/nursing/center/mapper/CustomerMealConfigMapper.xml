@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nursing.center.mapper.CustomerMealConfigMapper">
+
+    <!-- 结果映射 -->
+    <resultMap id="CustomerMealConfigDTOMap" type="com.nursing.center.dto.CustomerMealConfigDTO">
+        <id column="id" property="id"/>
+        <result column="customer_id" property="customerId"/>
+        <result column="meal_type" property="mealType"/>
+        <result column="special_requirements" property="specialRequirements"/>
+        <result column="allergies" property="allergies"/>
+        <result column="dietary_restrictions" property="dietaryRestrictions"/>
+        <result column="status" property="status"/>
+        <result column="customer_name" property="customerName"/>
+        <result column="bed_info" property="bedInfo"/>
+    </resultMap>
+
+    <!-- 分页查询客户膳食配置 -->
+    <select id="selectCustomerMealConfigPage" resultMap="CustomerMealConfigDTOMap">
+        SELECT
+        cmc.id,
+        cmc.customer_id,
+        cmc.meal_type,
+        cmc.special_requirements,
+        cmc.allergies,
+        cmc.dietary_restrictions,
+        cmc.status,
+        cmc.create_time,
+        cmc.update_time,
+        c.customer_name,
+        CONCAT(b.building_name, '-', r.room_no, '-', bed.bed_no) as bed_info
+        FROM customer_meal_config cmc
+        INNER JOIN customer c ON cmc.customer_id = c.id
+        LEFT JOIN bed bed ON c.bed_id = bed.id
+        LEFT JOIN room r ON bed.room_id = r.id
+        LEFT JOIN building b ON r.building_id = b.id
+        WHERE cmc.deleted = 0
+        <if test="query.customerId != null">
+            AND cmc.customer_id = #{query.customerId}
+        </if>
+        <if test="query.customerName != null and query.customerName != ''">
+            AND c.customer_name LIKE CONCAT('%', #{query.customerName}, '%')
+        </if>
+        <if test="query.mealType != null">
+            AND cmc.meal_type = #{query.mealType}
+        </if>
+        <if test="query.status != null">
+            AND cmc.status = #{query.status}
+        </if>
+        ORDER BY cmc.create_time DESC
+    </select>
+
+    <!-- 查询客户的膳食配置 -->
+    <select id="selectByCustomerId" resultMap="CustomerMealConfigDTOMap">
+        SELECT
+            cmc.id,
+            cmc.customer_id,
+            cmc.meal_type,
+            cmc.special_requirements,
+            cmc.allergies,
+            cmc.dietary_restrictions,
+            cmc.status,
+            c.customer_name,
+            CONCAT(b.building_name, '-', r.room_no, '-', bed.bed_no) as bed_info
+        FROM customer_meal_config cmc
+                 INNER JOIN customer c ON cmc.customer_id = c.id
+                 LEFT JOIN bed bed ON c.bed_id = bed.id
+                 LEFT JOIN room r ON bed.room_id = r.id
+                 LEFT JOIN building b ON r.building_id = b.id
+        WHERE cmc.deleted = 0 AND cmc.customer_id = #{customerId}
+        ORDER BY CASE cmc.meal_type
+                     WHEN 'BREAKFAST' THEN 1
+                     WHEN 'LUNCH' THEN 2
+                     WHEN 'DINNER' THEN 3
+                     WHEN 'SNACK' THEN 4
+                     ELSE 5
+                     END ASC
+    </select>
+
+    <!-- 查询膳食统计信息 -->
+    <select id="selectMealStatistics" resultType="com.nursing.center.dto.MealStatisticsDTO">
+        SELECT
+                (SELECT COUNT(*) FROM customer WHERE deleted = 0 AND status = 1) as totalCustomers,
+                (SELECT COUNT(DISTINCT customer_id) FROM customer_meal_config WHERE deleted = 0) as configuredCustomers,
+                (SELECT COUNT(*) FROM customer WHERE deleted = 0 AND status = 1
+                                                 AND id NOT IN (SELECT DISTINCT customer_id FROM customer_meal_config WHERE deleted = 0)) as unconfiguredCustomers,
+                (SELECT COUNT(*) FROM customer_meal_config WHERE deleted = 0 AND meal_type = 'BREAKFAST') as breakfastConfigs,
+                (SELECT COUNT(*) FROM customer_meal_config WHERE deleted = 0 AND meal_type = 'LUNCH') as lunchConfigs,
+                (SELECT COUNT(*) FROM customer_meal_config WHERE deleted = 0 AND meal_type = 'DINNER') as dinnerConfigs,
+                (SELECT COUNT(*) FROM customer_meal_config WHERE deleted = 0 AND meal_type = 'SNACK') as snackConfigs,
+                (SELECT COUNT(DISTINCT customer_id) FROM customer_meal_config
+                 WHERE deleted = 0 AND allergies IS NOT NULL AND allergies != '') as allergicCustomers,
+            (SELECT COUNT(DISTINCT customer_id) FROM customer_meal_config
+        WHERE deleted = 0 AND dietary_restrictions IS NOT NULL AND dietary_restrictions != '') as restrictedCustomers
+    </select>
+
+    <!-- 查询未配置膳食的客户 -->
+    <select id="selectCustomersWithoutMealConfig" resultMap="CustomerMealConfigDTOMap">
+        SELECT
+        0 as id,
+        c.id as customer_id,
+        NULL as meal_type,
+        NULL as special_requirements,
+        NULL as allergies,
+        NULL as dietary_restrictions,
+        1 as status,
+        c.customer_name,
+        CONCAT(b.building_name, '-', r.room_no, '-', bed.bed_no) as bed_info
+        FROM customer c
+        LEFT JOIN bed bed ON c.bed_id = bed.id
+        LEFT JOIN room r ON bed.room_id = r.id
+        LEFT JOIN building b ON r.building_id = b.id
+        WHERE c.deleted = 0 AND c.status = 1
+        AND c.id NOT IN (
+        SELECT DISTINCT customer_id
+        FROM customer_meal_config
+        WHERE deleted = 0
+        )
+        <if test="customerName != null and customerName != ''">
+            AND c.customer_name LIKE CONCAT('%', #{customerName}, '%')
+        </if>
+        ORDER BY c.create_time DESC
+    </select>
+
+</mapper>
